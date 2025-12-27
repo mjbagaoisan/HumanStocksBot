@@ -1,6 +1,6 @@
 module github.com/mjbagaoisan/humanstocksbot
 
-go 1.25.3
+go 1.23
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0 // indirect
