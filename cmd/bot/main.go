@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -13,28 +12,24 @@ import (
 	"github.com/mjbagaoisan/humanstocksbot/internal/db"
 )
 
-// 1. Load config
-// 2. Connect to DB
-// 3. Create discord session
-// 4. Register slash commands
-// 5. Add interaction handler
-// 6. Open connection
-// 7. Wait for shutdown signal
-// 8. Cleanup (close session, close DB pool)
-
 func main() {
 
 	// load config file
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("failed to load config")
+		log.Fatalf("failed to load config: %v", err)
 	}
 
 	// connect db
 	dbpool, err := db.NewPool(context.Background(), cfg.DatabaseURL)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to create connection pool: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("failed to create connection pool: %v", err)
+	}
+
+	// create bot with dependencies
+	bot := &Bot{
+		DB:     dbpool,
+		Config: cfg,
 	}
 
 	// create discord session
@@ -44,7 +39,7 @@ func main() {
 	}
 
 	// add interaction handler
-	discord.AddHandler(handleInteraction)
+	discord.AddHandler(bot.handleInteraction)
 
 	// open connection
 	err = discord.Open()
