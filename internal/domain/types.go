@@ -34,9 +34,9 @@ type GuildMember struct {
 
 // Wallet holds a user's cash balance
 type Wallet struct {
-	GuildID   string
-	UserID    string
-	Cash      int64 // Balance in cents
+	GuildID string
+	UserID  string
+	Cash    int64 // Balance in cents
 }
 
 // Market represents a tradable user's market

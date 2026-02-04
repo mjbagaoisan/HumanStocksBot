@@ -28,7 +28,7 @@ func TestWalletRepo_Create(t *testing.T) {
 	if err := memberRepo.Create(ctx, tx, guildID, userID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	
+
 	if err := walletRepo.Create(ctx, tx, guildID, userID, startingCash); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

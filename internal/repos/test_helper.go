@@ -10,7 +10,7 @@ import (
 
 func setupTestDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	
+
 	dbURL := os.Getenv("TEST_DATABASE_URL")
 	if dbURL == "" {
 		dbURL = os.Getenv("DATABASE_URL")
@@ -23,11 +23,11 @@ func setupTestDB(t *testing.T) *pgxpool.Pool {
 	if err != nil {
 		t.Skipf("Skipping integration test: %v", err)
 	}
-	
+
 	if err := pool.Ping(context.Background()); err != nil {
 		pool.Close()
 		t.Skipf("Skipping integration test: %v", err)
 	}
-	
+
 	return pool
 }

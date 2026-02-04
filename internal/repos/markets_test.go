@@ -135,7 +135,7 @@ func TestMarketRepo_GetByStatus(t *testing.T) {
 		if err := memberRepo.Create(ctx, tx, guildID, userID); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		
+
 		status := domain.MarketStatusActive
 		if i == 3 {
 			status = domain.MarketStatusSunsetting
