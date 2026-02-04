@@ -21,8 +21,6 @@ type GuildConfig struct {
 	SubjectFeeBps int64 // Portion of fee to subject (e.g., 100 = 1%)
 	TradingPaused bool
 	SunsetDays    int // Days before market closes after optout
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
 }
 
 // GuildMember represents a user's membership in a guild
@@ -32,8 +30,6 @@ type GuildMember struct {
 	OptedIn    bool
 	OptedInAt  *time.Time
 	OptedOutAt *time.Time
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
 }
 
 // Wallet holds a user's cash balance
@@ -41,8 +37,6 @@ type Wallet struct {
 	GuildID   string
 	UserID    string
 	Cash      int64 // Balance in cents
-	CreatedAt time.Time
-	UpdatedAt time.Time
 }
 
 // Market represents a tradable user's market
