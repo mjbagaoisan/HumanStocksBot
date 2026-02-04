@@ -17,7 +17,9 @@ func TestGuildConfigRepo_GetOrCreate(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer tx.Rollback(ctx)
+		defer func() {
+			_ = tx.Rollback(ctx)
+		}()
 
 		guildID := "test-guild-1"
 		config, err := repo.GetOrCreate(ctx, tx, guildID)
@@ -41,7 +43,9 @@ func TestGuildConfigRepo_GetOrCreate(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer tx.Rollback(ctx)
+		defer func() {
+			_ = tx.Rollback(ctx)
+		}()
 
 		guildID := "test-guild-2"
 		config1, _ := repo.GetOrCreate(ctx, tx, guildID)
@@ -67,10 +71,15 @@ func TestGuildConfigRepo_Update(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	guildID := "test-guild-3"
-	config, _ := repo.GetOrCreate(ctx, tx, guildID)
+	config, err := repo.GetOrCreate(ctx, tx, guildID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	config.StartingCash = 50000
 	config.TradeFeeBps = 300
 
@@ -78,7 +87,10 @@ func TestGuildConfigRepo_Update(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	updated, _ := repo.GetOrCreate(ctx, tx, guildID)
+	updated, err := repo.GetOrCreate(ctx, tx, guildID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if updated.StartingCash != 50000 {
 		t.Errorf("got starting_cash %d, want 50000", updated.StartingCash)
 	}

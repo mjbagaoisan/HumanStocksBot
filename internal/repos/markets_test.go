@@ -19,12 +19,16 @@ func TestMarketRepo_Create(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	guildID := "test-guild-1"
 	userID := "test-user-1"
 
-	memberRepo.Create(ctx, tx, guildID, userID)
+	if err := memberRepo.Create(ctx, tx, guildID, userID); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	market := &domain.Market{
 		GuildID:           guildID,
@@ -61,12 +65,16 @@ func TestMarketRepo_Update(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	guildID := "test-guild-2"
 	userID := "test-user-2"
 
-	memberRepo.Create(ctx, tx, guildID, userID)
+	if err := memberRepo.Create(ctx, tx, guildID, userID); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	market := &domain.Market{
 		GuildID:           guildID,
@@ -76,9 +84,14 @@ func TestMarketRepo_Update(t *testing.T) {
 		ReserveBalance:    0,
 		LastPrice:         1000,
 	}
-	marketRepo.Create(ctx, tx, market)
+	if err := marketRepo.Create(ctx, tx, market); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	retrieved, _ := marketRepo.GetForUpdate(ctx, tx, guildID, userID)
+	retrieved, err := marketRepo.GetForUpdate(ctx, tx, guildID, userID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	retrieved.SharesOutstanding = 10
 	retrieved.ReserveBalance = 10500
 	retrieved.LastPrice = 1100
@@ -87,7 +100,10 @@ func TestMarketRepo_Update(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	updated, _ := marketRepo.Get(ctx, tx, guildID, userID)
+	updated, err := marketRepo.Get(ctx, tx, guildID, userID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if updated.SharesOutstanding != 10 {
 		t.Errorf("got shares %d, want 10", updated.SharesOutstanding)
 	}
@@ -108,13 +124,17 @@ func TestMarketRepo_GetByStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	guildID := "test-guild-3"
 
 	for i := 1; i <= 3; i++ {
 		userID := "test-user-" + string(rune('0'+i))
-		memberRepo.Create(ctx, tx, guildID, userID)
+		if err := memberRepo.Create(ctx, tx, guildID, userID); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		
 		status := domain.MarketStatusActive
 		if i == 3 {
@@ -129,7 +149,9 @@ func TestMarketRepo_GetByStatus(t *testing.T) {
 			ReserveBalance:    0,
 			LastPrice:         1000,
 		}
-		marketRepo.Create(ctx, tx, market)
+		if err := marketRepo.Create(ctx, tx, market); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 	}
 
 	activeMarkets, err := marketRepo.GetByStatus(ctx, tx, guildID, string(domain.MarketStatusActive))

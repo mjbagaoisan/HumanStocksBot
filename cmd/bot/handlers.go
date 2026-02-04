@@ -87,7 +87,7 @@ func (b *Bot) handleOptin(s *discordgo.Session, i *discordgo.InteractionCreate) 
 
 	result, err := service.OptIn(ctx, guildID, userID)
 	if err != nil {
-		message := "Failed to opt in."
+		var message string
 		if errors.Is(err, domain.ErrAlreadyOptedIn) {
 			message = "You have already opted in."
 		} else {

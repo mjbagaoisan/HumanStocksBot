@@ -16,7 +16,9 @@ func TestGuildMemberRepo_Create(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	guildID := "test-guild-1"
 	userID := "test-user-1"
@@ -45,12 +47,16 @@ func TestGuildMemberRepo_Get(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	guildID := "test-guild-2"
 	userID := "test-user-2"
 
-	repo.Create(ctx, tx, guildID, userID)
+	if err := repo.Create(ctx, tx, guildID, userID); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	member, err := repo.Get(ctx, tx, guildID, userID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -78,18 +84,25 @@ func TestGuildMemberRepo_SetOptedIn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	guildID := "test-guild-3"
 	userID := "test-user-3"
 
-	repo.Create(ctx, tx, guildID, userID)
+	if err := repo.Create(ctx, tx, guildID, userID); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	
 	if err := repo.SetOptedIn(ctx, tx, guildID, userID, true); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	member, _ := repo.Get(ctx, tx, guildID, userID)
+	member, err := repo.Get(ctx, tx, guildID, userID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if !member.OptedIn {
 		t.Error("member should be opted in")
 	}
