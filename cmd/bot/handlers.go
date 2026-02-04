@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"log"
 	"runtime/debug"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mjbagaoisan/humanstocksbot/internal/config"
+	"github.com/mjbagaoisan/humanstocksbot/internal/domain"
+	"github.com/mjbagaoisan/humanstocksbot/internal/repos"
+	"github.com/mjbagaoisan/humanstocksbot/internal/services"
 )
 
 type Bot struct {
@@ -55,7 +61,47 @@ func (b *Bot) handleInteraction(s *discordgo.Session, i *discordgo.InteractionCr
 // User commands
 
 func (b *Bot) handleOptin(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if err := respondPublic(s, i, "Optin command - not implemented yet"); err != nil {
+	ctx := context.Background()
+	guildID := i.GuildID
+	userID := ""
+	if i.Member != nil && i.Member.User != nil {
+		userID = i.Member.User.ID
+	} else if i.User != nil {
+		userID = i.User.ID
+	}
+
+	if guildID == "" || userID == "" {
+		if err := respondEphemeral(s, i, "This command must be used in a server."); err != nil {
+			log.Printf("failed to respond to optin: %v", err)
+		}
+		return
+	}
+
+	service := services.NewOptInService(
+		b.DB,
+		repos.NewGuildConfigRepo(b.DB),
+		repos.NewGuildMemberRepo(b.DB),
+		repos.NewWalletRepo(b.DB),
+		repos.NewMarketRepo(b.DB),
+	)
+
+	result, err := service.OptIn(ctx, guildID, userID)
+	if err != nil {
+		message := "Failed to opt in."
+		if errors.Is(err, domain.ErrAlreadyOptedIn) {
+			message = "You have already opted in."
+		} else {
+			message = fmt.Sprintf("Failed to opt in: %v", err)
+		}
+
+		if respondErr := respondEphemeral(s, i, message); respondErr != nil {
+			log.Printf("failed to respond to optin error: %v", respondErr)
+		}
+		return
+	}
+
+	content := fmt.Sprintf("**<@%s>** is now tradable! Starting price: **%s**", result.UserID, formatDollars(result.BasePrice))
+	if err := respondPublic(s, i, content); err != nil {
 		log.Printf("failed to respond to optin: %v", err)
 	}
 }
@@ -143,4 +189,13 @@ func respondEphemeral(s *discordgo.Session, i *discordgo.InteractionCreate, cont
 			Flags:   discordgo.MessageFlagsEphemeral,
 		},
 	})
+}
+
+func formatDollars(cents int64) string {
+	dollars := cents / 100
+	remainder := cents % 100
+	if remainder < 0 {
+		remainder = -remainder
+	}
+	return fmt.Sprintf("$%d.%02d", dollars, remainder)
 }
