@@ -27,6 +27,10 @@ go.work
 *.swp
 *.swo
 
+# Claude Code
+.claude/
+docs/
+
 # OS files
 .DS_Store
 Thumbs.db

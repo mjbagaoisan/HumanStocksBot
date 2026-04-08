@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"runtime/debug"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -113,7 +114,101 @@ func (b *Bot) handleOptout(s *discordgo.Session, i *discordgo.InteractionCreate)
 }
 
 func (b *Bot) handleQuote(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if err := respondEphemeral(s, i, "Quote command - not implemented yet"); err != nil {
+	ctx := context.Background()
+	guildID := i.GuildID
+	opts := i.ApplicationCommandData().Options
+
+	var subjectUserID string
+	var subjectName string
+	var qty int64
+	var side string
+
+	resolved := i.ApplicationCommandData().Resolved
+	for _, opt := range opts {
+		switch opt.Name {
+		case "user":
+			subjectUserID = opt.UserValue(nil).ID
+			if resolved != nil && resolved.Users != nil {
+				if u, ok := resolved.Users[subjectUserID]; ok {
+					subjectName = u.GlobalName
+					if subjectName == "" {
+						subjectName = u.Username
+					}
+				}
+			}
+		case "quantity":
+			qty = opt.IntValue()
+		case "action":
+			side = strings.ToUpper(opt.StringValue())
+		}
+	}
+
+	tx, err := b.DB.Begin(ctx)
+	if err != nil {
+		log.Printf("failed to begin tx for quote: %v", err)
+		_ = respondEphemeral(s, i, "Something went wrong. Please try again.")
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	svc := services.NewQuoteService(
+		repos.NewMarketRepo(b.DB),
+		repos.NewGuildConfigRepo(b.DB),
+	)
+
+	result, err := svc.Quote(ctx, tx, guildID, subjectUserID, side, qty)
+	if err != nil {
+		var message string
+		switch {
+		case errors.Is(err, domain.ErrInvalidQuantity):
+			message = "Quantity must be greater than zero."
+		case errors.Is(err, domain.ErrMarketNotFound):
+			message = "That user hasn't opted in yet."
+		case errors.Is(err, domain.ErrMarketNotActive):
+			message = "That market is closed."
+		case errors.Is(err, domain.ErrMarketSunsetting):
+			message = "That market is sunsetting — only sells are allowed."
+		case errors.Is(err, domain.ErrInsufficientSupply):
+			message = "Not enough shares outstanding to sell that many."
+		default:
+			message = fmt.Sprintf("Failed to get quote: %v", err)
+		}
+		_ = respondEphemeral(s, i, message)
+		return
+	}
+
+	totalLabel := "Total cost"
+	color := 0x2ECC71 // green for buy
+	if result.Side == "SELL" {
+		totalLabel = "Payout"
+		color = 0xE74C3C // red for sell
+	}
+
+	feePercent := float64(result.TotalFee) / float64(result.GrossAmount) * 100
+
+	embed := &discordgo.MessageEmbed{
+		Title: fmt.Sprintf("Quote: %s %d shares of %s", result.Side, result.Shares, subjectName),
+		Color: color,
+		Fields: []*discordgo.MessageEmbedField{
+			{Name: "Gross", Value: formatDollars(result.GrossAmount), Inline: true},
+			{Name: fmt.Sprintf("Fee (%.1f%%)", feePercent), Value: formatDollars(result.TotalFee), Inline: true},
+			{Name: totalLabel, Value: fmt.Sprintf("**%s**", formatDollars(result.NetAmount)), Inline: true},
+			{Name: "Price before", Value: formatDollars(result.PriceBefore), Inline: true},
+			{Name: "Price after", Value: formatDollars(result.PriceAfter), Inline: true},
+			{Name: "Fee split", Value: fmt.Sprintf("Subject: %s | System: %s", formatDollars(result.SubjectFee), formatDollars(result.SystemFee)), Inline: false},
+		},
+		Footer: &discordgo.MessageEmbedFooter{
+			Text: "Prices are estimates and may change before execution",
+		},
+	}
+
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{embed},
+			Flags:  discordgo.MessageFlagsEphemeral,
+		},
+	}); err != nil {
 		log.Printf("failed to respond to quote: %v", err)
 	}
 }
